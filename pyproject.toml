@@ -1,0 +1,14 @@
+[project]
+name = "pdfo"
+version = "0.1.0"
+description = "Fast CLI tool to compress and optimize PDF files"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "click>=8.3.1",
+    "pillow>=12.1.0",
+    "pypdf>=6.6.2",
+]
+
+[project.scripts]
+pdfo = "pdfo:main"
