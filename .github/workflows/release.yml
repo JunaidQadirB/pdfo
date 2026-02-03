@@ -71,22 +71,32 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           import os
-          import re
           
           version = os.environ["VERSION"]
           tarball_url = f"https://github.com/JunaidQadirB/pdfo/archive/refs/tags/v{version}.tar.gz"
           sha256 = os.environ["SHA256"]
           
           formula_path = Path("homebrew-pdfo/Formula/pdfo.rb")
-          text = formula_path.read_text(encoding="utf-8")
+          lines = formula_path.read_text(encoding="utf-8").splitlines()
           
-          text, url_count = re.subn(r'(?m)^\\s*url\\s+\".*\"\\s*$', f'  url \"{tarball_url}\"', text, count=1)
-          text, sha_count = re.subn(r'(?m)^\\s*sha256\\s+\"[0-9a-f]{64}\"\\s*$', f'  sha256 \"{sha256}\"', text, count=1)
+          url_updated = False
+          sha_updated = False
+          for i, line in enumerate(lines):
+              stripped = line.lstrip()
+              indent = line[: len(line) - len(stripped)]
+              if not url_updated and stripped.startswith("url "):
+                  lines[i] = f'{indent}url "{tarball_url}"'
+                  url_updated = True
+                  continue
+              if url_updated and not sha_updated and stripped.startswith("sha256 "):
+                  lines[i] = f'{indent}sha256 "{sha256}"'
+                  sha_updated = True
+                  break
           
-          if url_count != 1 or sha_count != 1:
+          if not url_updated or not sha_updated:
               raise SystemExit("Failed to update url/sha256 in Formula/pdfo.rb")
           
-          formula_path.write_text(text, encoding="utf-8")
+          formula_path.write_text("\\n".join(lines) + "\\n", encoding="utf-8")
           PY
 
       - name: Commit and push Homebrew formula
