@@ -80,3 +80,7 @@ Uses Ghostscript to:
 5. Rewrite PDF structure efficiently
 
 Falls back to pypdf if Ghostscript is not available.
+
+## Releases
+
+Use the GitHub Actions "Release" workflow and choose `patch`, `minor`, or `major`. It bumps `pyproject.toml`, tags `vX.Y.Z`, creates a GitHub Release, and updates the Homebrew tap formula.
