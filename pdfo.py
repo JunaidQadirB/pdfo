@@ -84,7 +84,7 @@ def has_ghostscript() -> bool:
         return False
 
 
-@click.command()
+@click.command(no_args_is_help=True)
 @click.argument("input_file", type=click.Path(exists=True, path_type=Path))
 @click.option("-o", "--output", type=click.Path(path_type=Path), help="Output file (default: input_compressed.pdf)")
 @click.option("-q", "--quality", type=int, default=2, help="Quality: 1=high(300dpi) 2=medium(150dpi) 3/4=low(72dpi)")
