@@ -1,0 +1,99 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: "Version bump type"
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: patch
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Bump version
+        id: bump
+        run: |
+          version=$(python scripts/bump_version.py --bump "${{ inputs.release_type }}" --file pyproject.toml)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pyproject.toml
+          git commit -m "Release v${{ steps.bump.outputs.version }}"
+          git tag "v${{ steps.bump.outputs.version }}"
+          git push origin HEAD
+          git push origin "v${{ steps.bump.outputs.version }}"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v${{ steps.bump.outputs.version }}"
+          name: "v${{ steps.bump.outputs.version }}"
+          generate_release_notes: true
+
+      - name: Checkout Homebrew tap
+        uses: actions/checkout@v4
+        with:
+          repository: JunaidQadirB/homebrew-pdfo
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-pdfo
+
+      - name: Update Homebrew formula
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          set -euo pipefail
+          TARBALL_URL="https://github.com/JunaidQadirB/pdfo/archive/refs/tags/v${VERSION}.tar.gz"
+          SHA256=$(curl -fsSL "$TARBALL_URL" | shasum -a 256 | awk '{print $1}')
+          export SHA256
+
+          python - <<'PY'
+          from pathlib import Path
+          import os
+          import re
+          
+          version = os.environ["VERSION"]
+          tarball_url = f"https://github.com/JunaidQadirB/pdfo/archive/refs/tags/v{version}.tar.gz"
+          sha256 = os.environ["SHA256"]
+          
+          formula_path = Path("homebrew-pdfo/Formula/pdfo.rb")
+          text = formula_path.read_text(encoding="utf-8")
+          
+          text, url_count = re.subn(r'(?m)^\\s*url\\s+\".*\"\\s*$', f'  url \"{tarball_url}\"', text, count=1)
+          text, sha_count = re.subn(r'(?m)^\\s*sha256\\s+\"[0-9a-f]{64}\"\\s*$', f'  sha256 \"{sha256}\"', text, count=1)
+          
+          if url_count != 1 or sha_count != 1:
+              raise SystemExit("Failed to update url/sha256 in Formula/pdfo.rb")
+          
+          formula_path.write_text(text, encoding="utf-8")
+          PY
+
+      - name: Commit and push Homebrew formula
+        run: |
+          cd homebrew-pdfo
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/pdfo.rb
+          git commit -m "Update pdfo to v${{ steps.bump.outputs.version }}"
+          git push origin HEAD
