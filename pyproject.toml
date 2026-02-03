@@ -1,6 +1,6 @@
 [project]
 name = "pdfo"
-version = "0.1.0"
+version = "0.1.1"
 description = "Fast CLI tool to compress and optimize PDF files"
 readme = "README.md"
 requires-python = ">=3.12"
